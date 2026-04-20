@@ -23,7 +23,7 @@ def scrape_website(url: str) -> str:
             viewport={"width": 1280, "height": 800},
             locale="en-IN",
             timezone_id="Asia/Kolkata",
-            geolocation={"latitude": 12.9716, "longitude": 77.5946},
+            geolocation={"latitude": 12.905325, "longitude": 77.67983},
             permissions=["geolocation"],
             extra_http_headers={
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -87,7 +87,7 @@ tools = {
     "get_product_details_blinkit": get_product_details_blinkit,
     "get_product_details_zepto": get_product_details_zepto,
     "get_product_details_bigbasket": get_product_details_bigbasket,
-    "scrape_website": scrape_website
+    # "scrape_website": scrape_website
 }
 
 if __name__ == "__main__":
