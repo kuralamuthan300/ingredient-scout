@@ -46,57 +46,70 @@ def scrape_website(url: str) -> str:
     except Exception as e:
         return json.dumps({"error": str(e)})    
 
-def get_product_details_blinkit(item: str) -> str:
+def get_product_details_blinkit(arg: str) -> str:
     """
     Searches for an item on Blinkit and returns product details.
     
     Args:
-        item (str): The name of the item to search for (e.g., 'onion').
+        arg (str): The name of the item to search for (e.g., 'onion').
         
     Returns:
         str: Scraped text content from the Blinkit search results page.
     """
-    return scrape_website(f"https://blinkit.com/s/?q={item.replace(' ', '+')}")
+    return scrape_website(f"https://blinkit.com/s/?q={arg.replace(' ', '+')}")
 
-def get_product_details_zepto(item: str) -> str:
+def get_product_details_zepto(arg: str) -> str:
     """
     Searches for an item on Zepto and returns product details.
     
     Args:
-        item (str): The name of the item to search for.
+        arg (str): The name of the item to search for.
         
     Returns:
         str: Scraped text content from the Zepto search results page.
     """
-    return scrape_website(f"https://www.zepto.com/search?query={item.replace(' ', '+')}")
+    return scrape_website(f"https://www.zepto.com/search?query={arg.replace(' ', '+')}")
 
-def get_product_details_bigbasket(item: str) -> str:
+def get_product_details_bigbasket(arg: str) -> str:
     """
     Searches for an item on BigBasket and returns product details.
     
     Args:
-        item (str): The name of the item to search for.
+        arg (str): The name of the item to search for.
         
     Returns:
         str: Scraped text content from the BigBasket search results page.
     """
-    return scrape_website(f"https://www.bigbasket.com/ps/?q={item.replace(' ', '+')}&nc=as")
+    return scrape_website(f"https://www.bigbasket.com/ps/?q={arg.replace(' ', '+')}&nc=as")
+
+def get_more_info_from_user(arg: str) -> str:
+    """
+    If agent want to ask any clarification question to the user, then use this tool.
+    
+    Args:
+        arg (str): The question to ask the user.
+        
+    Returns:
+        str: The response from the user.
+    """
+    return json.dumps({"result": str(input(arg))})
 
 # Register tools in a dictionary
 tools = {
     "get_product_details_blinkit": get_product_details_blinkit,
     "get_product_details_zepto": get_product_details_zepto,
     "get_product_details_bigbasket": get_product_details_bigbasket,
-    # "scrape_website": scrape_website
+    "get_more_info_from_user": get_more_info_from_user
 }
 
 if __name__ == "__main__":
     # Running searches one by one (sequential)
-    print("--- Searching Zepto ---")
-    print(get_product_details_zepto("onion"))
+    # print("--- Searching Zepto ---")
+    # print(get_product_details_zepto("onion"))
     
-    print("\n\n--- Searching Blinkit ---")
-    print(get_product_details_blinkit("onion"))
+    # print("\n\n--- Searching Blinkit ---")
+    # print(get_product_details_blinkit("onion"))
     
-    print("\n\n--- Searching BigBasket ---")
-    print(get_product_details_bigbasket("onion"))
+    # print("\n\n--- Searching BigBasket ---")
+    # print(get_product_details_bigbasket("onion"))
+    print(get_more_info_from_user("What is your name?"))
