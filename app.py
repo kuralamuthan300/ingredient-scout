@@ -3,44 +3,55 @@ import json
 from main import call_gemma_cloud, parse_llm_response
 from tools import tools as available_tools
 
-# Override get_more_info_from_user to prevent it from blocking the terminal with input()
-def get_more_info_from_user_gradio(arg: str):
-    return json.dumps({"result": "Please make your best assumption based on the user's initial input."})
-
-available_tools["get_more_info_from_user"] = get_more_info_from_user_gradio
-
-def run_agent(user_input):
+def process_agent_step(user_input, state):
+    history = state.get("history", {})
+    num = state.get("num", 1)
+    status = state.get("status", "idle")
+    thinking_log = state.get("thinking_log", "")
+    
     if not user_input.strip():
-        yield "Please enter a valid request.", {"error": "Empty input."}
+        yield state, thinking_log, {"error": "Empty input."}, user_input
         return
 
-    conversation_history = {'conversation_1': user_input}
-    conversation_number = 1
+    if status == "idle" or status == "completed" or status == "error":
+        history = {'conversation_1': user_input}
+        num = 1
+        thinking_log = ""
+        status = "running"
+        yield {"history": history, "num": num, "status": status, "thinking_log": thinking_log}, thinking_log, {"status": "Starting up..."}, ""
+    elif status == "waiting_for_user":
+        num += 1
+        history[f'conversation_{num}'] = json.dumps({"result": user_input})
+        status = "running"
+        thinking_log += f"👤 User replied: {user_input}\n\n"
+        yield {"history": history, "num": num, "status": status, "thinking_log": thinking_log}, thinking_log, {"status": "Resuming..."}, ""
     
-    thinking_log = ""
-    yield thinking_log, {"status": "Starting up..."}
-
-    continue_flag = True
-    while continue_flag:
-        raw_response = call_gemma_cloud(str(conversation_history), available_tools)
+    state = {"history": history, "num": num, "status": status, "thinking_log": thinking_log}
+    
+    while state["status"] == "running":
+        raw_response = call_gemma_cloud(str(state["history"]), available_tools)
         if not raw_response:
-            yield thinking_log + "\nError: Received no response from model.", {"error": "No response"}
+            state["thinking_log"] += "\nError: Received no response from model."
+            state["status"] = "error"
+            yield state, state["thinking_log"], {"error": "No response"}, ""
             break
             
         try:
             llm_response = parse_llm_response(raw_response)
         except Exception as e:
-            yield thinking_log + f"\nError parsing response: {e}\nRaw: {raw_response}", {"error": "Parse error"}
+            state["thinking_log"] += f"\nError parsing response: {e}\nRaw: {raw_response}"
+            state["status"] = "error"
+            yield state, state["thinking_log"], {"error": "Parse error"}, ""
             break
             
         if "thinking" in llm_response:
-            thinking_log += f"🤔 Thinking:\n{llm_response['thinking']}\n\n"
+            state["thinking_log"] += f"🤔 Thinking:\n{llm_response['thinking']}\n\n"
             
-        yield thinking_log, {"status": "Thinking..."}
+        yield state, state["thinking_log"], {"status": "Thinking..."}, ""
         
         if llm_response.get('continue') == False:
-            continue_flag = False
-            yield thinking_log, llm_response
+            state["status"] = "completed"
+            yield state, state["thinking_log"], llm_response, ""
             break
             
         if "action" in llm_response:
@@ -48,10 +59,16 @@ def run_agent(user_input):
             params = llm_response['action'].get('params', {})
             tool_arg = params.get('arg', '')
             
-            thinking_log += f"🛠️ Using Tool: {tool_name}\n   Argument: {tool_arg}\n\n"
-            yield thinking_log, {"status": f"Running {tool_name}..."}
+            state["thinking_log"] += f"🛠️ Using Tool: {tool_name}\n   Argument: {tool_arg}\n\n"
+            yield state, state["thinking_log"], {"status": f"Running {tool_name}..."}, ""
             
-            conversation_number += 1
+            if tool_name == "get_more_info_from_user":
+                state["status"] = "waiting_for_user"
+                state["thinking_log"] += f"❓ Agent asks: {tool_arg}\n👉 Please type your reply in the text box and click 'Submit / Reply'.\n\n"
+                yield state, state["thinking_log"], {"status": "Waiting for user input..."}, ""
+                return
+            
+            state["num"] += 1
             if tool_name in available_tools:
                 try:
                     tool_response = available_tools[tool_name](tool_arg)
@@ -60,12 +77,13 @@ def run_agent(user_input):
             else:
                 tool_response = json.dumps({"error": f"Tool {tool_name} not found."})
                 
-            thinking_log += f"📥 Received tool response.\n\n"
-            conversation_history['conversation_'+str(conversation_number)] = tool_response
-            yield thinking_log, {"status": "Processing tool response..."}
+            state["thinking_log"] += f"📥 Received tool response.\n\n"
+            state["history"][f'conversation_{state["num"]}'] = tool_response
+            yield state, state["thinking_log"], {"status": "Processing tool response..."}, ""
         else:
-            thinking_log += "⚠️ Unexpected model response format.\n\n"
-            yield thinking_log, {"error": "Unexpected format", "raw": llm_response}
+            state["thinking_log"] += "⚠️ Unexpected model response format.\n\n"
+            state["status"] = "error"
+            yield state, state["thinking_log"], {"error": "Unexpected format", "raw": llm_response}, ""
             break
 
 css = """
@@ -85,23 +103,25 @@ body, .gradio-container {
 with gr.Blocks() as demo:
     gr.HTML("<h1 class='stylized-title'>Ingredient Scout</h1>")
     
+    agent_state = gr.State({"history": {}, "num": 1, "status": "idle", "thinking_log": ""})
+    
     with gr.Row():
         with gr.Column(scale=1):
             user_input = gr.Textbox(
-                label="What do you want to cook?",
-                placeholder="e.g. Pasta for 2 guests",
+                label="What do you want to cook? (Or type your reply here)",
+                placeholder="e.g. Pasta for 2 guests\ne.g. Yes, make it spicy",
                 lines=3
             )
-            submit_btn = gr.Button("Scout Ingredients", variant="primary")
+            submit_btn = gr.Button("Submit / Reply", variant="primary")
             
         with gr.Column(scale=2):
             thinking_box = gr.Textbox(label="Agent's Thoughts & Actions", lines=15, interactive=False)
             final_answer_box = gr.JSON(label="Final Answer")
 
     submit_btn.click(
-        fn=run_agent,
-        inputs=[user_input],
-        outputs=[thinking_box, final_answer_box]
+        fn=process_agent_step,
+        inputs=[user_input, agent_state],
+        outputs=[agent_state, thinking_box, final_answer_box, user_input]
     )
 
 if __name__ == "__main__":
