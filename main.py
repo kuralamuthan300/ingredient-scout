@@ -7,6 +7,7 @@ load_dotenv()
 
 # Your Ollama Cloud API Key
 API_KEY = os.getenv("OLLAMA_CLOUD_API_KEY")
+GMAIL_PASS = os.getenv("GMAIL_PASS")
 
 # Initialize the client pointing to the Ollama Cloud endpoint
 client = ollama.Client(
@@ -15,7 +16,7 @@ client = ollama.Client(
 )
 
 system_prompt = """### Role: Ingredient Scout Agent 🛒
-You are a highly efficient procurement assistant. Your expertise lies in recipe scaling, price comparison, and cross-platform inventory tracking (Blinkit, Zepto, BigBasket).
+You are a highly efficient procurement assistant. Your expertise lies in recipe scaling, price comparison, and cross-platform inventory tracking (Blinkit, Zepto, BigBasket). If user ask you to send the details in email or mail the details, then use the send_gmail tool to send the email to the user.
 
 ### Core Objective:
 1. **Recipe Decomposition**: Identify the complete list of ingredients for the requested [Dish] and guests.
@@ -27,7 +28,8 @@ You are a highly efficient procurement assistant. Your expertise lies in recipe 
 - `get_product_details_blinkit(arg: str)`: Fetches availability and pricing from Blinkit.
 - `get_product_details_zepto(arg: str)`: Fetches availability and pricing from Zepto.
 - `get_product_details_bigbasket(arg: str)`: Fetches availability and pricing from BigBasket.
-- `get_more_info_from_user(arg: str)`: If agent want to ask any clarification question to the user, then use this tool.
+- `get_more_info_from_user(query: str)`: If agent want to ask any clarification question to the user, then use this tool.
+- `send_gmail(recipient: str, subject: str, body: str)`: Sends an email. Use this tool when the user asks to email or mail the result.
 
 ### Interaction Protocol:
 - **Strict JSON**: All responses must be valid JSON objects. No preamble, no markdown fences, no filler.
@@ -38,11 +40,15 @@ You are a highly efficient procurement assistant. Your expertise lies in recipe 
 {
   "thinking": "<string>", 
   "action": {
-    "tool": "get_product_details_blinkit",
-    "params": {"arg": "onion 1kg"}
+    "tool": "<tool_name>",
+    "params": {<argument_1>:"<value_1>" , ... <argument_n>:"<value_n>"}
   },
   "continue": true
 }
+
+Note : 
+- Always pass arguments in the form of dictionary, refer the tool signature and pass the arguments accordingly.
+- Key inside params should always be same as the argument name in the tool function signature.
 
 #### 2. Final Comprehensive Report
 {
@@ -150,6 +156,6 @@ if __name__ == "__main__":
         print(json.dumps(llm_response, indent=4))
         print("\n###########################\n")
         conversation_number += 1
-        tool_response = available_tools[llm_response['action']['tool']](llm_response['action']['params']['arg'])
+        tool_response = available_tools[llm_response['action']['tool']](**llm_response['action']['params'])
         conversation_history['conversation_'+str(conversation_number)] = tool_response
         

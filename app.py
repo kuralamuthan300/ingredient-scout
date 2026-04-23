@@ -57,21 +57,24 @@ def process_agent_step(user_input, state):
         if "action" in llm_response:
             tool_name = llm_response['action'].get('tool')
             params = llm_response['action'].get('params', {})
-            tool_arg = params.get('arg', '')
             
-            state["thinking_log"] += f"🛠️ Using Tool: {tool_name}\n   Argument: {tool_arg}\n\n"
+            # Format params for logging
+            params_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+            
+            state["thinking_log"] += f"🛠️ Using Tool: {tool_name}\n   Arguments: {params_str}\n\n"
             yield state, state["thinking_log"], {"status": f"Running {tool_name}..."}, ""
             
             if tool_name == "get_more_info_from_user":
                 state["status"] = "waiting_for_user"
-                state["thinking_log"] += f"❓ Agent asks: {tool_arg}\n👉 Please type your reply in the text box and click 'Submit / Reply'.\n\n"
+                query_text = params.get('query', params.get('arg', 'Please provide more info.'))
+                state["thinking_log"] += f"❓ Agent asks: {query_text}\n👉 Please type your reply in the text box and click 'Submit / Reply'.\n\n"
                 yield state, state["thinking_log"], {"status": "Waiting for user input..."}, ""
                 return
             
             state["num"] += 1
             if tool_name in available_tools:
                 try:
-                    tool_response = available_tools[tool_name](tool_arg)
+                    tool_response = available_tools[tool_name](**params)
                 except Exception as e:
                     tool_response = json.dumps({"error": str(e)})
             else:

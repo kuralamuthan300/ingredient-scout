@@ -2,6 +2,10 @@ from playwright.sync_api import sync_playwright
 from playwright_stealth import Stealth
 import trafilatura
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import os
 
 def scrape_website(url: str) -> str:
     """
@@ -82,24 +86,50 @@ def get_product_details_bigbasket(arg: str) -> str:
     """
     return scrape_website(f"https://www.bigbasket.com/ps/?q={arg.replace(' ', '+')}&nc=as")
 
-def get_more_info_from_user(arg: str) -> str:
+def get_more_info_from_user(query: str) -> str:
     """
     If agent want to ask any clarification question to the user, then use this tool.
     
     Args:
-        arg (str): The question to ask the user.
+        query (str): The question to ask the user.
         
     Returns:
         str: The response from the user.
     """
-    return json.dumps({"result": str(input(arg))})
+    return json.dumps({"result": str(input(query))})
+
+
+def send_gmail(recipient: str, subject: str, body: str) -> str:
+    print('SEND GMAIL STARTED')
+    sender_email = os.getenv("GMAIL_UNAME") 
+    app_password = os.getenv("GMAIL_PASS") 
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = recipient
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Gmail SMTP server settings
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls() # Secure the connection
+        server.login(sender_email, app_password)
+        server.send_message(msg)
+        server.quit()
+        print('MAIL SENT SUCCESSFULLY')
+        return json.dumps({"result": "Email sent successfully!"})
+    except Exception as e:
+        print(f"EMAIL SENDING FAILED {e}")
+        return json.dumps({"result": f"Failed to send email: {e}"})
 
 # Register tools in a dictionary
 tools = {
     "get_product_details_blinkit": get_product_details_blinkit,
     "get_product_details_zepto": get_product_details_zepto,
     "get_product_details_bigbasket": get_product_details_bigbasket,
-    "get_more_info_from_user": get_more_info_from_user
+    "get_more_info_from_user": get_more_info_from_user,
+    "send_gmail": send_gmail
 }
 
 if __name__ == "__main__":
