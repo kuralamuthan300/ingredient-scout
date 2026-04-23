@@ -1,6 +1,6 @@
 import gradio as gr
 import json
-from main import call_gemma_cloud, parse_llm_response
+from agent import call_gemma_cloud, parse_llm_response
 from tools import tools as available_tools
 
 def process_agent_step(user_input, state):

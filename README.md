@@ -57,17 +57,26 @@ Ingredient Scout is an intelligent AI agent designed to simplify meal planning a
 
 ### Usage
 
-Run the main agent script:
+**Running the Web Interface (Recommended):**
+```bash
+python app.py
+```
+This will launch a beautiful Gradio UI accessible via your web browser for an interactive experience, showing the agent's thought process in real time.
+
+**Running the Command Line Script:**
 ```bash
 python main.py
 ```
 
-Currently, the script is configured to demonstrate the LLM's ability to process queries. You can modify the `user_input` in `main.py` to ask for specific recipe ingredients and price comparisons.
+Currently, the script is configured to demonstrate the LLM's ability to process queries. You can interact with the agent via the terminal prompt.
 
 ## 🏗️ Project Structure
 
-- `main.py`: The entry point containing the LLM orchestration logic and system prompts.
-- `tools.py`: Contains the web scraping handles for Blinkit, Zepto, and BigBasket using Playwright.
+- `config.py`: Contains environment variable loading, API keys, and the agent's system prompt.
+- `agent.py`: Handles the LLM orchestration logic, including sending prompts to Gemma 4 via Ollama Cloud and parsing responses.
+- `tools.py`: Contains the web scraping handles for Blinkit, Zepto, and BigBasket using Playwright, plus utilities for emailing results.
+- `app.py`: The Gradio web interface providing a stylized, step-by-step interactive chat with the agent.
+- `main.py`: A command-line entry point for running the agent without the UI.
 - `pyproject.toml`: Project metadata and dependency definitions.
 
 ## 🤖 How it Works
